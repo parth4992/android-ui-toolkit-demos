@@ -24,20 +24,24 @@ import android.animation.ObjectAnimator;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.util.ArrayMap;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.support.v7.widget.DefaultItemAnimator;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AccelerateInterpolator;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
-import android.widget.LinearLayout;
+import android.widget.FrameLayout;
 import android.widget.RadioGroup;
 import android.widget.TextView;
 
@@ -52,6 +56,8 @@ public class MainActivity extends AppCompatActivity {
     DefaultItemAnimator mDefaultItemAnimator = new DefaultItemAnimator();
     MyChangeAnimator mChangeAnimator = new MyChangeAnimator();
     ArgbEvaluator mColorEvaluator = new ArgbEvaluator();
+    MyItemDecoration decor;
+    int direction;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,10 +66,12 @@ public class MainActivity extends AppCompatActivity {
         mRadioGroup = (RadioGroup) findViewById(R.id.radioGroup);
         mPredictiveCB = (CheckBox) findViewById(R.id.predictiveCB);
         mCustomCB = (CheckBox) findViewById(R.id.customCB);
-
+        decor = new MyItemDecoration(getDrawable(R.drawable.focused_color));
         mRecyclerView = (RecyclerView) findViewById(R.id.recyclerview);
         mRecyclerView.setLayoutManager(new MyLinearLayoutManager(this));
         mRecyclerView.setAdapter(new RVAdapter());
+//        mRecyclerView.addItemDecoration(new MyItemDecoration());
+//        mRecyclerView.addItemDecoration(decor);
 
         mCustomCB.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
@@ -73,6 +81,8 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+
+
     /**
      * Custom adapter that supplies view holders to the RecyclerView. Our view holders
      * contain a simple LinearLayout (with a background color) and a TextView (displaying
@@ -81,6 +91,7 @@ public class MainActivity extends AppCompatActivity {
     private class RVAdapter extends RecyclerView.Adapter {
 
         ArrayList<Integer> mColors = new ArrayList<>();
+        private int lastPosition = -1;
 
         public RVAdapter() {
             generateData();
@@ -90,10 +101,22 @@ public class MainActivity extends AppCompatActivity {
         public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
             final MyViewHolder myHolder = (MyViewHolder) holder;
             int color = mColors.get(position);
-            myHolder.container.setBackgroundColor(color);
+            myHolder.container.setBackgroundColor(Color.TRANSPARENT);
             myHolder.textView.setText("#" + Integer.toHexString(color));
+//            setAnimation(myHolder.container, position);
         }
-
+//        private void setAnimation(View viewToAnimate, int position)
+//        {
+//            // If the bound view wasn't previously displayed on screen, it's animated
+//            if (position > lastPosition)
+//            {
+//                Animation animation = AnimationUtils.loadAnimation(MainActivity.this, android.R.anim
+//                        .slide_in_left);
+//                animation.setInterpolator(MainActivity.this, android.R.anim.accelerate_decelerate_interpolator);
+//                viewToAnimate.startAnimation(animation);
+//                lastPosition = position;
+//            }
+//        }
         @Override
         public int getItemCount() {
             return mColors.size();
@@ -146,6 +169,105 @@ public class MainActivity extends AppCompatActivity {
         public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
             View container = getLayoutInflater().inflate(R.layout.item_layout, parent, false);
             container.setOnClickListener(mItemAction);
+            container.setOnKeyListener(new View.OnKeyListener() {
+                @Override
+                public boolean onKey(View v, int keyCode, KeyEvent event) {
+//                    Log.d("MainActivity", "KeyDown Event");
+                    switch (keyCode)
+                    {
+                        case KeyEvent.KEYCODE_DPAD_DOWN :
+                            direction = 0;
+                            break;
+                        case KeyEvent.KEYCODE_DPAD_UP :
+                            direction = 1;
+                            break;
+                    }
+
+
+                    return false;
+                }
+            });
+            final AnimatorSet bgAnim = new AnimatorSet();
+            final Animation anim;
+            container.setOnFocusChangeListener(focusChangeListener);
+            /*container.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                @Override
+                public void onFocusChange(View v, boolean hasFocus) {
+//                    mRecyclerView.addItemDecoration(decor);
+                    Log.d("MainActivity", "FocusChange Event");
+                    ObjectAnimator mvf = new ObjectAnimator();
+                    if(direction ==0) {
+                        if (hasFocus) {
+                            View av = v.findViewById(R.id.animated);
+
+
+                            av.setLayoutParams(new FrameLayout.LayoutParams(v.getMeasuredWidth(), v
+                                    .getMeasuredHeight()));
+                            av.setBackgroundColor(Color.BLUE);
+
+//                            Animator test = AnimatorInflater.loadAnimator(MainActivity.this, R
+//                                    .animator.something);
+//
+//                            test.setTarget(av);
+//                            mvf = ObjectAnimator.ofFloat(av,View.TRANSLATION_Y,-(v
+//                                    .getMeasuredHeight()),0);
+//                            bgAnim.setTarget(av);
+//                            bgAnim.playSequentially(mvf);
+
+//                            test.start();
+                            Animation anim = AnimationUtils.loadAnimation(MainActivity.this, R.anim
+                                    .enter_down);
+
+                            av.startAnimation(anim);
+                            av.setVisibility(View.VISIBLE);
+
+                        } else {
+                            View av = v.findViewById(R.id.animated);
+                            Animation anim = AnimationUtils.loadAnimation(MainActivity.this, R.anim.fadeout_down);
+                            av.startAnimation(anim);
+//                            mvf = ObjectAnimator.ofFloat(av,View.TRANSLATION_Y,0,av.getMeasuredHeight());
+//                            bgAnim.setTarget(av);
+//                            bgAnim.playSequentially(mvf);
+
+                            av.setVisibility(View.GONE);
+                        }
+                        bgAnim.start();
+                    } else {
+
+                        if (hasFocus) {
+
+                            View av = v.findViewById(R.id.animated);
+                            av.setLayoutParams(new FrameLayout.LayoutParams(v.getMeasuredWidth(), v
+                                    .getMeasuredHeight()));
+                            av.setBackgroundColor(Color.BLUE);
+                            Animation anim = AnimationUtils.loadAnimation(MainActivity.this, R.anim
+                                    .enter_up);
+//                            mvf = ObjectAnimator.ofFloat(av,View.TRANSLATION_Y,av.getY(),0);
+//
+//                            bgAnim.setTarget(av);
+//                            bgAnim.playSequentially(mvf);
+
+                            av.startAnimation(anim);
+                            av.setVisibility(View.VISIBLE);
+
+                        } else {
+                            View av = v.findViewById(R.id.animated);
+                            Animation anim = AnimationUtils.loadAnimation(MainActivity.this, R
+                                    .anim.fadeout_up);
+                            av.startAnimation(anim);
+//                            mvf = ObjectAnimator.ofFloat(av,View.TRANSLATION_Y,0,-(av
+//                                    .getMeasuredHeight()));
+//
+//                            bgAnim.setTarget(av);
+//                            bgAnim.playSequentially(mvf);
+
+                            av.setVisibility(View.GONE);
+                        }
+//                        bgAnim.start();
+                    }
+                }
+            });*/
+
             return new MyViewHolder(container);
         }
 
@@ -161,8 +283,202 @@ public class MainActivity extends AppCompatActivity {
                 mColors.add(generateColor());
             }
         }
-
     }
+
+    Animation anims;
+    ArrayList<ArrayList<Object>> queue = new ArrayList<>();
+
+    View.OnFocusChangeListener focusChangeListener = new View.OnFocusChangeListener() {
+        @Override
+        public void onFocusChange(View v, boolean hasFocus) {
+//            Log.d("MainActivity", "FocusChange Event");
+            ObjectAnimator mvf = new ObjectAnimator();
+            boolean flag = false;
+            if(direction ==0) {
+                if (hasFocus) {
+                    View av = v.findViewById(R.id.animated);
+
+
+                    av.setLayoutParams(new FrameLayout.LayoutParams(v.getMeasuredWidth(), v
+                            .getMeasuredHeight()));
+                    av.setBackgroundColor(Color.BLUE);
+
+//                            Animator test = AnimatorInflater.loadAnimator(MainActivity.this, R
+//                                    .animator.something);
+//
+//                            test.setTarget(av);
+//                            mvf = ObjectAnimator.ofFloat(av,View.TRANSLATION_Y,-(v
+//                                    .getMeasuredHeight()),0);
+//                            bgAnim.setTarget(av);
+//                            bgAnim.playSequentially(mvf);
+
+//                            test.start();
+                    anims = AnimationUtils.loadAnimation(MainActivity.this, R.anim
+                            .enter_down);
+                    if(anims.hasEnded() || !anims.hasStarted())
+                        av.startAnimation(anims);
+                    else{
+                        ArrayList<Object> item = new ArrayList<>(2);
+                        item.add(av);
+                        item.add(anims);
+                        queue.add(item);
+                    }
+                    anims.setAnimationListener(new Animation.AnimationListener() {
+                        @Override
+                        public void onAnimationStart(Animation animation) {
+                        }
+
+                        @Override
+                        public void onAnimationEnd(Animation animation) {
+                            Log.d("MainActivty", "Down has focus");
+                            if(queue!=null && !queue.isEmpty()){
+                                View v = (View) queue.get(0).get(0);
+                                v.startAnimation((Animation) queue.get(0).get(1));
+                                queue.remove(0);
+                            }
+                        }
+
+                        @Override
+                        public void onAnimationRepeat(Animation animation) {
+
+                        }
+                    });
+                    av.setVisibility(View.VISIBLE);
+
+                } else {
+                    View av = v.findViewById(R.id.animated);
+                    anims = AnimationUtils.loadAnimation(MainActivity.this, R.anim
+                            .fadeout_down);
+                    if(anims.hasEnded() || !anims.hasStarted())
+                        av.startAnimation(anims);
+                    else{
+                        ArrayList<Object> item = new ArrayList<>(2);
+                        item.add(av);
+                        item.add(anims);
+                        queue.add(item);
+                    }
+                    anims.setAnimationListener(new Animation.AnimationListener() {
+                        @Override
+                        public void onAnimationStart(Animation animation) {
+
+                        }
+
+                        @Override
+                        public void onAnimationEnd(Animation animation) {
+                            Log.d("MainActivty", "Down lost focus");
+                            if(queue!=null && !queue.isEmpty()){
+                                View v = (View) queue.get(0).get(0);
+                                v.startAnimation((Animation) queue.get(0).get(1));
+                                queue.remove(0);
+                            }
+                        }
+
+                        @Override
+                        public void onAnimationRepeat(Animation animation) {
+
+                        }
+                    });
+//                            mvf = ObjectAnimator.ofFloat(av,View.TRANSLATION_Y,0,av.getMeasuredHeight());
+//                            bgAnim.setTarget(av);
+//                            bgAnim.playSequentially(mvf);
+
+                    av.setVisibility(View.GONE);
+                }
+//                bgAnim.start();
+            } else {
+
+                if (hasFocus) {
+
+                    View av = v.findViewById(R.id.animated);
+                    av.setLayoutParams(new FrameLayout.LayoutParams(v.getMeasuredWidth(), v
+                            .getMeasuredHeight()));
+                    av.setBackgroundColor(Color.BLUE);
+                    anims = AnimationUtils.loadAnimation(MainActivity.this, R.anim
+                            .enter_up);
+//                            mvf = ObjectAnimator.ofFloat(av,View.TRANSLATION_Y,av.getY(),0);
+//
+//                            bgAnim.setTarget(av);
+//                            bgAnim.playSequentially(mvf);
+
+                    if(anims.hasEnded() || !anims.hasStarted())
+                        av.startAnimation(anims);
+                    else{
+                        ArrayList<Object> item = new ArrayList<>(2);
+                        item.add(av);
+                        item.add(anims);
+                        queue.add(item);
+                    }
+                    anims.setAnimationListener(new Animation.AnimationListener() {
+                        @Override
+                        public void onAnimationStart(Animation animation) {
+
+                        }
+
+                        @Override
+                        public void onAnimationEnd(Animation animation) {
+                            if(queue!=null && !queue.isEmpty()){
+                                View v = (View) queue.get(0).get(0);
+                                v.startAnimation((Animation) queue.get(0).get(1));
+                                queue.remove(0);
+                            }
+                        }
+
+                        @Override
+                        public void onAnimationRepeat(Animation animation) {
+
+                        }
+                    });
+                    av.setVisibility(View.VISIBLE);
+
+                } else {
+                    View av = v.findViewById(R.id.animated);
+                    anims = AnimationUtils.loadAnimation(MainActivity.this, R
+                            .anim.fadeout_up);
+                    if(anims.hasEnded() || !anims.hasStarted())
+                        av.startAnimation(anims);
+                    else{
+                        ArrayList<Object> item = new ArrayList<>(2);
+                        item.add(av);
+                        item.add(anims);
+                        queue.add(item);
+                    }
+                    anims.setAnimationListener(new Animation.AnimationListener() {
+                        @Override
+                        public void onAnimationStart(Animation animation) {
+
+                        }
+
+                        @Override
+                        public void onAnimationEnd(Animation animation) {
+                            if(queue!=null && !queue.isEmpty()){
+                                View v = (View) queue.get(0).get(0);
+                                v.startAnimation((Animation) queue.get(0).get(1));
+                                queue.remove(0);
+                            }
+                        }
+
+                        @Override
+                        public void onAnimationRepeat(Animation animation) {
+
+                        }
+                    });
+
+//                            mvf = ObjectAnimator.ofFloat(av,View.TRANSLATION_Y,0,-(av
+//                                    .getMeasuredHeight()));
+//
+//                            bgAnim.setTarget(av);
+//                            bgAnim.playSequentially(mvf);
+
+                    av.setVisibility(View.GONE);
+                }
+//                        bgAnim.start();
+            }
+
+        }
+    };
+
+
+
 
     /**
      * Simple extension of LinearLayoutManager for the sole purpose of showing what happens
@@ -176,7 +492,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public boolean supportsPredictiveItemAnimations() {
-            return mPredictiveCB.isChecked();
+            return true;
         }
     }
 
@@ -268,7 +584,6 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-
         /**
          * Custom change animation. Fade to black on the container background, then back
          * up to the new bg coolor. Meanwhile, the text rotates, switching along the way.
@@ -276,6 +591,7 @@ public class MainActivity extends AppCompatActivity {
          * a change, we stop the previous change and start the new one where the old
          * one left off.
          */
+
         @Override
         public boolean animateChange(@NonNull final RecyclerView.ViewHolder oldHolder,
                 @NonNull final RecyclerView.ViewHolder newHolder,
@@ -297,7 +613,7 @@ public class MainActivity extends AppCompatActivity {
             final String newText = newInfo.text;
 
             // These are the objects whose values will be animated
-            LinearLayout newContainer = viewHolder.container;
+            FrameLayout newContainer = viewHolder.container;
             final TextView newTextView = viewHolder.textView;
 
             // Check to see if there's a change animation already running on this item
@@ -329,6 +645,7 @@ public class MainActivity extends AppCompatActivity {
                 fadeToBlack = ObjectAnimator.ofInt(newContainer, "backgroundColor",
                         startColor, Color.BLACK);
                 fadeToBlack.setEvaluator(mColorEvaluator);
+
                 if (runningInfo != null) {
                     // Seek to appropriate time in new animator if we were already
                     // running a previous animation
@@ -462,11 +779,11 @@ public class MainActivity extends AppCompatActivity {
 
     static class MyViewHolder extends RecyclerView.ViewHolder {
         public TextView textView;
-        public LinearLayout container;
+        public FrameLayout container;
 
         public MyViewHolder(View v) {
             super(v);
-            container = (LinearLayout) v;
+            container = (FrameLayout) v;
             textView = (TextView) v.findViewById(R.id.textview);
         }
 
